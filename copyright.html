@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文化祭準備シミュレーター：著作権クエスト</title>
+<style>
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f4f6fb;
+    margin: 0;
+    color: #222;
+  }
+  header {
+    background: #26324a;
+    color: white;
+    padding: 20px;
+    text-align: center;
+  }
+  main {
+    max-width: 900px;
+    margin: 24px auto;
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  }
+  h1 { margin: 0; font-size: 1.6rem; }
+  h2 { color: #26324a; }
+  .scene {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    background: #eef2ff;
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+  }
+  .choices {
+    display: grid;
+    gap: 12px;
+  }
+  button {
+    font-size: 1rem;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    background: #e8ebf3;
+    cursor: pointer;
+    text-align: left;
+  }
+  button:hover {
+    background: #d8def0;
+  }
+  .feedback {
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 12px;
+    background: #fff8df;
+    line-height: 1.8;
+  }
+  .next {
+    margin-top: 16px;
+    background: #26324a;
+    color: white;
+    text-align: center;
+  }
+  .scorebox {
+    display: grid;
+    gap: 12px;
+    margin: 20px 0;
+  }
+  .score {
+    background: #f0f3f8;
+    padding: 14px;
+    border-radius: 12px;
+  }
+  .bar {
+    height: 16px;
+    background: #ddd;
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .fill {
+    height: 100%;
+    background: #536dfe;
+    width: 0%;
+  }
+  .small {
+    color: #666;
+    font-size: .9rem;
+  }
+  .danger { background: #ffe8e8; }
+  .safe { background: #e8fff1; }
+  .gray { background: #fff8df; }
+  footer {
+    text-align: center;
+    color: #777;
+    font-size: .85rem;
+    padding: 20px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>文化祭準備シミュレーター</h1>
+  <p>著作権・肖像権・引用・利用規約を判断しよう</p>
+</header>
+
+<main id="app"></main>
+
+<footer>
+  授業用教材：判断に迷う場合は「許可を取る」「自作する」「利用条件を確認する」が基本です。
+</footer>
+
+<script>
+const scenes = [
+  {
+    title: "第1問：文化祭ポスターを作る",
+    text: "文化祭実行委員のあなたは、ポスターのメイン画像を選ぶことになりました。どれを使いますか？",
+    choices: [
+      {
+        text: "A：Google画像検索で見つけた、人気アニメ風の画像をそのまま使う",
+        popular: 30, safe: -30, risk: 40,
+        type: "danger",
+        comment: "かなり危険です。ネット上にある画像でも、自由に使えるとは限りません。著作権侵害や商標・キャラクター権利の問題が起こる可能性があります。"
+      },
+      {
+        text: "B：自分たちで撮影した校舎や装飾の写真を使う",
+        popular: 15, safe: 35, risk: -20,
+        type: "safe",
+        comment: "良い判断です。自作素材は権利関係が整理しやすいです。ただし、人物が写る場合は肖像権や個人情報にも注意しましょう。"
+      },
+      {
+        text: "C：フリー素材サイトから画像を使う。利用規約とクレジット表記条件を確認する",
+        popular: 20, safe: 30, risk: -15,
+        type: "safe",
+        comment: "とても良い判断です。フリー素材でも『商用利用可』『改変可』『クレジット必要』など条件があります。利用規約の確認が大切です。"
+      }
+    ]
+  },
+  {
+    title: "第2問：PR動画のBGMを選ぶ",
+    text: "文化祭紹介動画を作ります。動画にはBGMを入れたいです。どれを選びますか？",
+    choices: [
+      {
+        text: "A：流行している曲をYouTubeから録音して使う",
+        popular: 35, safe: -35, risk: 45,
+        type: "danger",
+        comment: "危険です。流行曲は著作権で保護されています。学校内だけの利用でも、公開範囲や利用方法によって問題になる可能性があります。"
+      },
+      {
+        text: "B：著作権フリーBGMサイトから、利用条件を確認して使う",
+        popular: 20, safe: 35, risk: -20,
+        type: "safe",
+        comment: "良い判断です。『著作権フリー』でも完全自由とは限りません。利用条件を確認して使うのが大切です。"
+      },
+      {
+        text: "C：友人が作曲した曲を、本人の許可を取って使う",
+        popular: 25, safe: 30, risk: -15,
+        type: "safe",
+        comment: "良い判断です。友人が作った曲にも著作権があります。本人の許可を取ることが重要です。できれば使用範囲も確認しましょう。"
+      }
+    ]
+  },
+  {
+    title: "第3問：SNSで宣伝する",
+    text: "文化祭の様子をSNSで紹介します。写真投稿で一番よい対応はどれでしょう？",
+    choices: [
+      {
+        text: "A：盛り上がっている写真を、写っている人に確認せず投稿する",
+        popular: 30, safe: -25, risk: 35,
+        type: "danger",
+        comment: "危険です。写真には著作権だけでなく、肖像権や個人情報の問題があります。写っている人の許可が必要です。"
+      },
+      {
+        text: "B：顔がはっきり写らない写真を選び、学校のルールに従って投稿する",
+        popular: 20, safe: 30, risk: -15,
+        type: "safe",
+        comment: "良い判断です。顔や名札、制服、位置情報などにも注意が必要です。学校の情報発信ルールに従うことが大切です。"
+      },
+      {
+        text: "C：友達だけの限定公開なら何でも投稿してよい",
+        popular: 15, safe: -15, risk: 25,
+        type: "gray",
+        comment: "グレーです。限定公開でもスクリーンショットや再共有で広がる可能性があります。公開範囲が狭くても、権利やプライバシーへの配慮は必要です。"
+      }
+    ]
+  },
+  {
+    title: "第4問：展示発表の資料を作る",
+    text: "展示で使うスライドに、ネット記事の文章や図を入れたいです。どうしますか？",
+    choices: [
+      {
+        text: "A：出典を書けば、記事の文章を全部コピーしてよい",
+        popular: 10, safe: -30, risk: 35,
+        type: "danger",
+        comment: "危険です。出典を書けば何でもコピーできるわけではありません。引用は『必要な範囲』『主従関係』『出典明示』などの条件が必要です。"
+      },
+      {
+        text: "B：必要な一部分だけを引用し、出典を明記して、自分の説明を中心にする",
+        popular: 20, safe: 35, risk: -20,
+        type: "safe",
+        comment: "良い判断です。引用は、自分の考えや説明が主で、引用部分が従であることが大切です。出典も明記しましょう。"
+      },
+      {
+        text: "C：文章を少し言い換えれば、自分の文章として使ってよい",
+        popular: 15, safe: -20, risk: 30,
+        type: "danger",
+        comment: "危険です。少し言い換えただけでは、元の表現や構成を無断利用している可能性があります。自分の理解でまとめ、必要なら引用しましょう。"
+      }
+    ]
+  },
+  {
+    title: "第5問：AI生成画像を使う",
+    text: "AIで作った画像を文化祭パンフレットに使いたいです。どの対応がよいでしょう？",
+    choices: [
+      {
+        text: "A：AIが作ったものだから、何も確認せず自由に使う",
+        popular: 20, safe: -15, risk: 25,
+        type: "gray",
+        comment: "注意が必要です。AI生成物でも、利用するサービスの規約、既存キャラクターに似すぎていないか、商標や肖像の問題がないか確認が必要です。"
+      },
+      {
+        text: "B：特定の作品や作家名をまねる指示は避け、サービスの利用規約を確認する",
+        popular: 20, safe: 30, risk: -15,
+        type: "safe",
+        comment: "良い判断です。AIは便利ですが、既存作品に近すぎる表現や、利用規約違反には注意が必要です。"
+      },
+      {
+        text: "C：有名キャラクターそっくりに作っても、AI生成なら問題ない",
+        popular: 35, safe: -35, risk: 45,
+        type: "danger",
+        comment: "危険です。AI生成でも、有名キャラクターにそっくりな画像は権利侵害の可能性があります。"
+      }
+    ]
+  }
+];
+
+let current = 0;
+let scores = { popular: 50, safe: 50, risk: 10 };
+let history = [];
+
+const app = document.getElementById("app");
+
+function clamp(n) {
+  return Math.max(0, Math.min(100, n));
+}
+
+function start() {
+  current = 0;
+  scores = { popular: 50, safe: 50, risk: 10 };
+  history = [];
+  renderScene();
+}
+
+function renderScene() {
+  const s = scenes[current];
+  app.innerHTML = `
+    <h2>${s.title}</h2>
+    <div class="scene">${s.text}</div>
+    <div class="choices">
+      ${s.choices.map((c, i) => `<button onclick="choose(${i})">${c.text}</button>`).join("")}
+    </div>
+    <p class="small">現在：人気 ${scores.popular} / 安全 ${scores.safe} / 炎上リスク ${scores.risk}</p>
+  `;
+}
+
+function choose(index) {
+  const c = scenes[current].choices[index];
+
+  scores.popular = clamp(scores.popular + c.popular);
+  scores.safe = clamp(scores.safe + c.safe);
+  scores.risk = clamp(scores.risk + c.risk);
+
+  history.push({
+    scene: scenes[current].title,
+    choice: c.text,
+    comment: c.comment,
+    type: c.type
+  });
+
+  app.innerHTML = `
+    <h2>${scenes[current].title}</h2>
+    <div class="feedback ${c.type}">
+      <strong>あなたの選択：</strong><br>${c.text}<br><br>
+      <strong>解説：</strong><br>${c.comment}
+    </div>
+    <button class="next" onclick="next()">次へ</button>
+  `;
+}
+
+function next() {
+  current++;
+  if (current >= scenes.length) {
+    renderResult();
+  } else {
+    renderScene();
+  }
+}
+
+function renderResult() {
+  let rank = "";
+  let advice = "";
+
+  if (scores.safe >= 80 && scores.risk <= 25) {
+    rank = "著作権マスター実行委員";
+    advice = "とても良い判断です。作品・人・ルールを大切にしながら、文化祭を盛り上げられています。";
+  } else if (scores.safe >= 60 && scores.risk <= 50) {
+    rank = "慎重派クリエイター";
+    advice = "おおむね良い判断です。迷ったときは、許可・利用規約・引用条件を確認するとさらに安全です。";
+  } else if (scores.risk >= 70) {
+    rank = "炎上寸前インフルエンサー";
+    advice = "人気を優先しすぎています。バズることと、他者の権利を尊重することは別です。";
+  } else {
+    rank = "グレーゾーン探検隊";
+    advice = "判断に迷う場面が多いです。『自作する』『許可を取る』『出典を書く』『規約を読む』を意識しましょう。";
+  }
+
+  app.innerHTML = `
+    <h2>結果発表</h2>
+    <h3>${rank}</h3>
+    <p>${advice}</p>
+
+    <div class="scorebox">
+      ${scoreBar("人気ポイント", scores.popular)}
+      ${scoreBar("安全ポイント", scores.safe)}
+      ${scoreBar("炎上リスク", scores.risk)}
+    </div>
+
+    <h3>振り返り</h3>
+    <ol>
+      ${history.map(h => `<li><strong>${h.scene}</strong><br>${h.choice}<br><span class="small">${h.comment}</span></li>`).join("")}
+    </ol>
+
+    <h3>授業で考える問い</h3>
+    <div class="scene">
+      1. 「出典を書けば使ってよい」は本当か？<br>
+      2. 「学校内だけなら自由に使ってよい」は本当か？<br>
+      3. AI生成物を使うとき、人間は何を確認すべきか？<br>
+      4. 著作権はクリエイターを縛るものか、守るものか？
+    </div>
+
+    <button class="next" onclick="start()">もう一度プレイ</button>
+  `;
+}
+
+function scoreBar(label, value) {
+  return `
+    <div class="score">
+      <strong>${label}：${value}</strong>
+      <div class="bar"><div class="fill" style="width:${value}%"></div></div>
+    </div>
+  `;
+}
+
+start();
+</script>
+</body>
+</html>
