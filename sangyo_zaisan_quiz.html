@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>産業財産権クイズ</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+  background: #f0f2f5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 12px;
+}
+h1 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; letter-spacing: 0.04em; }
+.subtitle { font-size: 13px; color: #666; margin-bottom: 10px; }
+
+/* 問題切り替えタブ */
+.tabs {
+  display: flex; gap: 8px; margin-bottom: 12px;
+}
+.tab-btn {
+  padding: 6px 20px;
+  border-radius: 20px;
+  border: 1.5px solid #c7d0e0;
+  background: #fff;
+  font-size: 13px; font-weight: 600; color: #666;
+  cursor: pointer; transition: all 0.15s;
+}
+.tab-btn.active {
+  background: #2563eb; color: #fff; border-color: #2563eb;
+}
+.tab-btn.done {
+  border-color: #22c55e; color: #166534; background: #f0fdf4;
+}
+.tab-btn.done.active {
+  background: #16a34a; color: #fff; border-color: #16a34a;
+}
+
+.score-bar {
+  font-size: 13px; color: #444; margin-bottom: 12px;
+  background: #fff; border-radius: 20px; padding: 5px 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+/* 問題ページ */
+.quiz-page { display: none; width: 100%; max-width: 680px; flex-direction: column; align-items: center; }
+.quiz-page.active { display: flex; }
+
+.stage {
+  position: relative;
+  width: 100%;
+}
+.stage img {
+  width: 100%; display: block;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  user-select: none; -webkit-user-drag: none;
+}
+.overlay {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+.hotspot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  cursor: pointer; pointer-events: all; z-index: 10;
+}
+.spot-circle {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none; z-index: 8;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  opacity: 0; transition: opacity 0.2s;
+}
+.spot-circle.show { opacity: 1; }
+.spot-circle.correct { background: rgba(56,178,98,0.92); color: #fff; border: 2.5px solid #fff; }
+.spot-circle.wrong   { background: rgba(229,62,62,0.92);  color: #fff; border: 2.5px solid #fff; }
+.spot-circle.active  { background: rgba(255,255,255,0.92); color: #1a1a2e; border: 2.5px solid #2563eb; }
+@keyframes popIn {
+  0%   { opacity:0; transform: translate(-50%,-50%) scale(0.5); }
+  70%  { transform: translate(-50%,-50%) scale(1.15); }
+  100% { opacity:1; transform: translate(-50%,-50%) scale(1); }
+}
+.spot-circle.pop { animation: popIn 0.25s ease forwards; }
+
+/* パネル */
+.panel {
+  position: absolute;
+  background: #fff; border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+  padding: 12px; width: 155px;
+  z-index: 20; opacity: 0; transform: scale(0.92);
+  pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+}
+.panel.show { opacity: 1; transform: scale(1); pointer-events: all; }
+.panel-label { font-size: 10px; font-weight: 700; color: #888; letter-spacing: 0.06em; margin-bottom: 6px; }
+.panel-area  { font-size: 12px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; padding-bottom: 7px; border-bottom: 1px solid #eee; line-height: 1.4; }
+.choice-btn {
+  display: block; width: 100%; text-align: left;
+  background: #f7f8fa; border: 1.5px solid #e2e6ea;
+  border-radius: 8px; padding: 6px 9px;
+  font-size: 12px; font-weight: 500; color: #333;
+  cursor: pointer; margin-bottom: 5px;
+  transition: background 0.1s, border-color 0.1s;
+}
+.choice-btn:hover { background: #eef2ff; border-color: #a5b4fc; }
+.choice-btn.selected { background: #dbeafe; border-color: #2563eb; color: #1e40af; }
+.choice-btn:disabled { opacity: 0.5; cursor: default; }
+.confirm-btn {
+  display: block; width: 100%; margin-top: 8px; padding: 7px;
+  background: #2563eb; color: #fff; border: none;
+  border-radius: 8px; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: background 0.1s;
+}
+.confirm-btn:hover { background: #1d4ed8; }
+.confirm-btn:disabled { background: #a0aec0; cursor: default; }
+.feedback-msg {
+  margin-top: 7px; font-size: 11px; line-height: 1.5;
+  border-radius: 6px; padding: 5px 7px; display: none;
+}
+.feedback-msg.correct { display: block; background: #f0fdf4; color: #166534; }
+.feedback-msg.wrong   { display: block; background: #fef2f2; color: #991b1b; }
+.hint-toggle {
+  display: none; margin-top: 5px;
+  font-size: 11px; color: #2563eb; cursor: pointer;
+  text-decoration: underline; background: none; border: none; padding: 0;
+}
+.hint-toggle.show { display: block; }
+.hint-text { font-size: 11px; color: #555; line-height: 1.5; margin-top: 3px; display: none; }
+.hint-text.show { display: block; }
+.close-btn {
+  display: block; width: 100%; margin-top: 5px; padding: 5px;
+  background: none; color: #888; border: 1px solid #ddd;
+  border-radius: 8px; font-size: 11px; cursor: pointer;
+}
+.close-btn:hover { background: #f5f5f5; }
+
+/* 問終了バナー */
+.page-done {
+  display: none; margin-top: 14px; width: 100%;
+  background: #fff; border-radius: 12px;
+  padding: 14px 20px; text-align: center;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  font-size: 14px; font-weight: 700; color: #1a1a2e;
+}
+.page-done .next-btn {
+  margin-top: 10px; padding: 8px 28px;
+  background: #2563eb; color: #fff; border: none;
+  border-radius: 8px; font-size: 13px; font-weight: 700;
+  cursor: pointer;
+}
+.page-done .next-btn:hover { background: #1d4ed8; }
+
+/* 全問終了 */
+.all-done {
+  display: none; margin-top: 16px;
+  background: #fff; border-radius: 12px;
+  padding: 16px 24px; text-align: center;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  font-size: 15px; font-weight: 700; color: #1a1a2e;
+  width: 100%; max-width: 680px;
+}
+</style>
+</head>
+<body>
+
+<h1>産業財産権クイズ</h1>
+<p class="subtitle">画像のいたるところをタップして、産業財産権に関わる部分を探そう</p>
+
+<div class="tabs">
+  <button class="tab-btn active" id="tab1" onclick="switchPage(0)">第1問：タブレット</button>
+  <button class="tab-btn" id="tab2" onclick="switchPage(1)">第2問：キーボード</button>
+</div>
+
+<div class="score-bar">合計正解 <b id="totalCorrect">0</b> / <b id="totalQ">0</b> 問</div>
+
+<!-- 第1問 -->
+<div class="quiz-page active" id="page0">
+  <div class="stage" id="stage0">
+    <img src="stptncs2020-03-16_a01.jpg" alt="Fujitsuタブレット" id="img0" />
+    <svg class="overlay" id="svg0" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+  </div>
+  <div class="page-done" id="done0">
+    🎉 第1問終了！ <span id="score0"></span> 正解
+    <br><button class="next-btn" onclick="switchPage(1)">第2問へ →</button>
+  </div>
+</div>
+
+<!-- 第2問 -->
+<div class="quiz-page" id="page1">
+  <div class="stage" id="stage1">
+    <img src="keyboard.png" alt="キーボード" id="img1" />
+    <svg class="overlay" id="svg1" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+  </div>
+  <div class="page-done" id="done1">
+    🎉 第2問終了！ <span id="score1"></span> 正解
+  </div>
+</div>
+
+<div class="all-done" id="allDone"></div>
+
+<script>
+const RIGHTS = ["特許権", "実用新案権", "意匠権", "商標権"];
+
+const QUESTIONS = [
+  // ===== 第1問：タブレット =====
+  // 画像サイズ 800x533
+  {
+    pageId: 0,
+    hotspots: [
+      {
+        id: "q1_logo",
+        label: "FUJITSUロゴ",
+        correct: "商標権",
+        hint: "社名・ブランド名のロゴは商標権で保護されます。商標権はブランドの識別力を守る権利です。",
+        xPct: 10, yPct: 10, panelSide: "right"
+      },
+      {
+        id: "q1_camera",
+        label: "フロントカメラ・センサー部",
+        correct: "特許権",
+        hint: "カメラやセンサーの内部技術・撮影方式は「発明」として特許権の対象になります。",
+        xPct: 48, yPct: 6.5, panelSide: "right"
+      },
+      {
+        id: "q1_body",
+        label: "本体の外観デザイン",
+        correct: "意匠権",
+        hint: "製品の形状・模様・色彩などの外観デザインは意匠権で保護されます。",
+        xPct: 96, yPct: 50, panelSide: "left"
+      },
+      {
+        id: "q1_display",
+        label: "高精細ディスプレイ技術",
+        correct: "特許権",
+        hint: "高輝度・高解像度表示の制御技術など、技術的な発明は特許権で保護されます。",
+        xPct: 50, yPct: 52, panelSide: "right"
+      },
+      {
+        id: "q1_rubber",
+        label: "四隅のゴムバンパー",
+        correct: "実用新案権",
+        hint: "落下時の衝撃を和らげるための四隅ゴムは、形状・構造の工夫による実用的なアイデアです。実用的な改良は実用新案権で保護されます。",
+        xPct: 3.5, yPct: 88, panelSide: "right"
+      }
+    ]
+  },
+  // ===== 第2問：キーボード =====
+  // 画像サイズ 549x433
+  {
+    pageId: 1,
+    hotspots: [
+      {
+        id: "q2_key",
+        label: "キー入力機構・配列技術",
+        correct: "特許権",
+        hint: "キーの押し込み機構や入力検出の仕組みなど、技術的な発明は特許権で保護されます。",
+        xPct: 50, yPct: 40, panelSide: "right"
+      },
+      {
+        id: "q2_design",
+        label: "キーボード全体の外観デザイン",
+        correct: "意匠権",
+        hint: "キーボードの形状・キーの配置バランス・外観の美しさは意匠権で保護されます。",
+        xPct: 4, yPct: 50, panelSide: "right"
+      },
+      {
+        id: "q2_touchpad",
+        label: "タッチパッド",
+        correct: "実用新案権",
+        hint: "タッチパッドの形状や操作性を高めるための構造上の工夫は、実用新案権の対象になります。",
+        xPct: 45, yPct: 88, panelSide: "right"
+      }
+    ]
+  }
+];
+
+// 状態管理
+const state = {
+  answered: [{}, {}],     // pageId -> { id: true/false }
+  correctPerPage: [0, 0],
+  totalPerPage: [0, 0],
+  activeId: [null, null],
+  activeTapTime: [0, 0],
+  panelTimer: [null, null]
+};
+
+let currentPage = 0;
+
+function switchPage(idx) {
+  currentPage = idx;
+  document.querySelectorAll(".quiz-page").forEach((p, i) => {
+    p.classList.toggle("active", i === idx);
+  });
+  document.querySelectorAll(".tab-btn").forEach((t, i) => {
+    t.classList.toggle("active", i === idx);
+  });
+  buildAll(idx, false);
+}
+
+function getPanelTopPct(spot) {
+  let t = spot.yPct - 20;
+  if (t < 1)  t = 1;
+  if (t > 55) t = 55;
+  return t;
+}
+
+function buildAll(pageIdx, showPanel) {
+  const q      = QUESTIONS[pageIdx];
+  const stage  = document.getElementById("stage" + pageIdx);
+  const svg    = document.getElementById("svg"   + pageIdx);
+  const imgEl  = document.getElementById("img"   + pageIdx);
+
+  stage.querySelectorAll(".hotspot, .spot-circle, .panel, .answer-label").forEach(e => e.remove());
+  svg.innerHTML = "";
+
+  const iW = imgEl.offsetWidth;
+  const iH = imgEl.offsetHeight;
+  const answered   = state.answered[pageIdx];
+  const activeId   = state.activeId[pageIdx];
+
+  q.hotspots.forEach(spot => {
+    const cx = (spot.xPct / 100) * iW;
+    const cy = (spot.yPct / 100) * iH;
+    const r  = 20;
+
+    // 丸マーカー
+    const circle = document.createElement("div");
+    circle.className = "spot-circle";
+    circle.style.cssText = `left:${cx}px;top:${cy}px;width:${r*2}px;height:${r*2}px;`;
+    if (answered[spot.id] === true) {
+      circle.classList.add("show","correct"); circle.textContent = "○";
+    } else if (answered[spot.id] === false) {
+      circle.classList.add("show","wrong"); circle.textContent = "×";
+    } else if (activeId === spot.id) {
+      circle.classList.add("show","active","pop"); circle.textContent = "？";
+    }
+    stage.appendChild(circle);
+
+    // タップ受付（未回答のみ）
+    if (!answered.hasOwnProperty(spot.id)) {
+      const hs = document.createElement("div");
+      hs.className = "hotspot";
+      hs.style.cssText = `left:${cx}px;top:${cy}px;`;
+      hs.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const now  = Date.now();
+        const last = state.activeTapTime[pageIdx];
+        if (state.activeId[pageIdx] === spot.id && now - last < 500) {
+          clearTimeout(state.panelTimer[pageIdx]);
+          state.activeId[pageIdx]     = null;
+          state.activeTapTime[pageIdx] = 0;
+          buildAll(pageIdx, false);
+          return;
+        }
+        clearTimeout(state.panelTimer[pageIdx]);
+        state.activeId[pageIdx]      = spot.id;
+        state.activeTapTime[pageIdx] = now;
+        buildAll(pageIdx, false);
+        state.panelTimer[pageIdx] = setTimeout(() => buildAll(pageIdx, true), 600);
+      });
+      stage.appendChild(hs);
+    }
+
+    // SVG線（アクティブ時）
+    if (activeId === spot.id) {
+      const topPct   = getPanelTopPct(spot);
+      const panelW   = 155;
+      const panelConnY = (topPct / 100) * iH + 20;
+      let   panelConnX = spot.panelSide === "right"
+        ? Math.min(cx + 30, iW - panelW - 4)
+        : Math.max(cx - 30, panelW + 4);
+      const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+      line.setAttribute("x1", (cx / iW * 100).toFixed(2));
+      line.setAttribute("y1", (cy / iH * 100).toFixed(2));
+      line.setAttribute("x2", (panelConnX / iW * 100).toFixed(2));
+      line.setAttribute("y2", (panelConnY / iH * 100).toFixed(2));
+      line.setAttribute("stroke","#2563eb");
+      line.setAttribute("stroke-width","0.4");
+      line.setAttribute("stroke-dasharray","1.5 1");
+      line.setAttribute("fill","none");
+      line.setAttribute("opacity","0.7");
+      svg.appendChild(line);
+    }
+
+    // 回答済みラベル
+    if (answered.hasOwnProperty(spot.id)) {
+      const lbl = document.createElement("div");
+      lbl.className = "answer-label";
+      const bg = answered[spot.id] ? "rgba(22,101,52,0.85)" : "rgba(153,27,27,0.85)";
+      if (spot.panelSide === "left") {
+        lbl.style.cssText = `position:absolute;left:${cx}px;top:${cy+r+4}px;transform:translateX(-50%);background:${bg};color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;white-space:nowrap;pointer-events:none;z-index:9;`;
+      } else {
+        lbl.style.cssText = `position:absolute;left:${cx+r+4}px;top:${cy}px;transform:translateY(-50%);background:${bg};color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;white-space:nowrap;pointer-events:none;z-index:9;`;
+      }
+      lbl.textContent = spot.correct;
+      stage.appendChild(lbl);
+    }
+
+    // パネル（未回答 かつ このスポットがアクティブ かつ showPanel=true）
+    if (!answered.hasOwnProperty(spot.id) && showPanel && spot.id === activeId) {
+      stage.appendChild(buildPanel(spot, cx, cy, iW, iH, pageIdx));
+    }
+  });
+
+  updateScore();
+
+  // ページ終了チェック
+  const answeredCount = Object.keys(answered).length;
+  const totalSpots    = q.hotspots.length;
+  if (answeredCount === totalSpots) {
+    const doneEl = document.getElementById("done" + pageIdx);
+    doneEl.style.display = "block";
+    document.getElementById("score" + pageIdx).textContent =
+      `${state.correctPerPage[pageIdx]} / ${totalSpots}`;
+    // タブに完了マーク
+    document.getElementById("tab" + (pageIdx+1)).classList.add("done");
+
+    // 全問終了チェック
+    const allAnswered = QUESTIONS.every((_, i) =>
+      Object.keys(state.answered[i]).length === QUESTIONS[i].hotspots.length
+    );
+    if (allAnswered) {
+      const total = state.correctPerPage.reduce((a,b)=>a+b,0);
+      const totalQ = QUESTIONS.reduce((a,q)=>a+q.hotspots.length,0);
+      const el = document.getElementById("allDone");
+      el.style.display = "block";
+      el.innerHTML = `🏆 全問終了！合計 <span style="color:#2563eb;font-size:20px;">${total} / ${totalQ}</span> 正解でした！`;
+    }
+  }
+}
+
+function buildPanel(spot, cx, cy, iW, iH, pageIdx) {
+  const panel = document.createElement("div");
+  panel.className = "panel";
+  const topPct = getPanelTopPct(spot);
+  const panelW = 155;
+  if (spot.panelSide === "right") {
+    let leftPx = cx + 28;
+    if (leftPx + panelW > iW - 4) leftPx = iW - panelW - 4;
+    panel.style.cssText = `top:${topPct}%;left:${leftPx}px;`;
+  } else {
+    let rightPx = iW - cx + 28;
+    if (iW - rightPx - panelW < 4) rightPx = iW - panelW - 4;
+    panel.style.cssText = `top:${topPct}%;right:${rightPx}px;`;
+  }
+
+  let selectedRight = null;
+  panel.innerHTML = `
+    <div class="panel-label">どの権利？</div>
+    <div class="panel-area">${spot.label}</div>
+    ${RIGHTS.map(r => `<button class="choice-btn" data-r="${r}">${r}</button>`).join("")}
+    <button class="confirm-btn" id="cfm-${spot.id}" disabled>確認</button>
+    <div class="feedback-msg" id="fb-${spot.id}"></div>
+    <button class="hint-toggle" id="hint-toggle-${spot.id}">解説を見る</button>
+    <div class="hint-text" id="hint-${spot.id}">${spot.hint}</div>
+    <button class="close-btn" id="close-${spot.id}">閉じる</button>
+  `;
+
+  panel.querySelectorAll(".choice-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      panel.querySelectorAll(".choice-btn").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      selectedRight = btn.dataset.r;
+      document.getElementById("cfm-" + spot.id).disabled = false;
+    });
+  });
+
+  panel.querySelector("#cfm-" + spot.id).addEventListener("click", () => {
+    if (!selectedRight) return;
+    const isOk = selectedRight === spot.correct;
+    const ans  = state.answered[pageIdx];
+    if (!ans.hasOwnProperty(spot.id)) {
+      state.totalPerPage[pageIdx]++;
+      if (isOk) state.correctPerPage[pageIdx]++;
+      ans[spot.id] = isOk;
+    }
+    const fb = document.getElementById("fb-" + spot.id);
+    fb.className = "feedback-msg " + (isOk ? "correct" : "wrong");
+    fb.textContent = isOk ? `✓ 正解！「${spot.correct}」です。` : `✗ 不正解。正解は「${spot.correct}」です。`;
+    document.getElementById("hint-toggle-" + spot.id).classList.add("show");
+    document.getElementById("cfm-"         + spot.id).disabled = true;
+    panel.querySelectorAll(".choice-btn").forEach(b => { b.disabled = true; b.style.cursor = "default"; });
+    setTimeout(() => {
+      state.activeId[pageIdx]      = null;
+      state.activeTapTime[pageIdx] = 0;
+      buildAll(pageIdx, false);
+    }, 900);
+  });
+
+  panel.querySelector("#hint-toggle-" + spot.id).addEventListener("click", () => {
+    document.getElementById("hint-" + spot.id).classList.toggle("show");
+  });
+
+  panel.querySelector("#close-" + spot.id).addEventListener("click", () => {
+    clearTimeout(state.panelTimer[pageIdx]);
+    state.activeId[pageIdx]      = null;
+    state.activeTapTime[pageIdx] = 0;
+    buildAll(pageIdx, false);
+  });
+
+  // 画面のどこかをタップ → 0.5秒以内なら○消し
+  const stageEl = document.getElementById("stage" + pageIdx);
+  // （既存のstageリスナーは各buildAll呼び出しで再設定されないようoneceで管理）
+  setTimeout(() => { panel.classList.add("show"); }, 20);
+  return panel;
+}
+
+function updateScore() {
+  const total   = state.correctPerPage.reduce((a,b)=>a+b,0);
+  const totalQ  = state.totalPerPage.reduce((a,b)=>a+b,0);
+  document.getElementById("totalCorrect").textContent = total;
+  document.getElementById("totalQ").textContent       = totalQ;
+}
+
+// 各stageの背景タップで○消し
+[0,1].forEach(pageIdx => {
+  const stageEl = document.getElementById("stage" + pageIdx);
+  stageEl.addEventListener("click", () => {
+    if (!state.activeId[pageIdx]) return;
+    const now = Date.now();
+    if (now - state.activeTapTime[pageIdx] < 500) {
+      clearTimeout(state.panelTimer[pageIdx]);
+      state.activeId[pageIdx]      = null;
+      state.activeTapTime[pageIdx] = 0;
+      buildAll(pageIdx, false);
+    }
+  });
+});
+
+// 画像ロード後に構築
+[0,1].forEach(pageIdx => {
+  const imgEl = document.getElementById("img" + pageIdx);
+  imgEl.addEventListener("load", () => buildAll(pageIdx, false));
+  if (imgEl.complete) buildAll(pageIdx, false);
+});
+window.addEventListener("resize", () => buildAll(currentPage, false));
+</script>
+</body>
+</html>
